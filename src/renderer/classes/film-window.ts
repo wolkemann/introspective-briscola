@@ -1,9 +1,11 @@
 import * as THREE from 'three'
 import { VIEW } from '../constants'
+import gsap from 'gsap'
 
 export class FilmWindow {
   id: string
   visible: boolean
+  isMoving: boolean
 
   x: number
   y: number
@@ -19,6 +21,7 @@ export class FilmWindow {
   constructor(id: string, x: number, y: number, width: number, height: number) {
     this.id = id
     this.visible = true
+    this.isMoving = false
     this.x = x
     this.y = y
     this.width = width
@@ -30,6 +33,7 @@ export class FilmWindow {
     this.ratioH = height / window.innerHeight
 
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000)
+    this.camera.name = `Camera_${id}`
   }
 
   updatePosition(x: number, y: number): void {
@@ -96,5 +100,33 @@ export class FilmWindow {
       windowDiv.style.width = `${this.width}px`
       windowDiv.style.height = `${this.height}px`
     }
+  }
+
+  moveWithGsap(targetX: number, targetY: number, duration: number = 1): void {
+    if (this.id === VIEW.MAIN) return
+    const windowDiv = document.getElementById(this.id)
+    if (!windowDiv) return
+
+    this.ratioX = targetX / window.innerWidth
+    this.ratioY = targetY / window.innerHeight
+
+    gsap.to(windowDiv.style, {
+      left: `${targetX}px`,
+      bottom: `${targetY}px`,
+      duration: duration,
+      ease: 'power2.out',
+      onStart: () => {
+        this.isMoving = true
+      },
+      onUpdate: () => {
+        const currentX = parseFloat(windowDiv.style.left)
+        const currentY = parseFloat(windowDiv.style.bottom)
+        this.x = currentX
+        this.y = currentY
+      },
+      onComplete: () => {
+        this.isMoving = false
+      }
+    })
   }
 }

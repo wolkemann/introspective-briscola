@@ -71,3 +71,7 @@ export enum VIEW {
   CHARACTER = 'VIEW-CHARACTER',
   TABLE = 'VIEW-TABLE'
 }
+
+export enum ENGINE_OBJECT_NAMES {
+  TRANSFORM_CONTROLS = 'Engine_TransformControls'
+}

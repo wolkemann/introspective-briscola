@@ -14,7 +14,7 @@ export class Engine {
   renderer: THREE.WebGLRenderer
   views: FilmWindow[]
   meshes: THREE.Mesh[]
-  sceneObjects: THREE.Object3D[]
+  lights: THREE.Light[]
   sceneObjectIndex: number
 
   edit_transformControls: TransformControls
@@ -23,7 +23,8 @@ export class Engine {
     scene: THREE.Scene,
     renderer: THREE.WebGLRenderer,
     views: FilmWindow[],
-    meshes: THREE.Mesh[] = []
+    meshes: THREE.Mesh[] = [],
+    lights: THREE.Light[] = []
   ) {
     this.mode = MODE.EDIT
 
@@ -31,57 +32,49 @@ export class Engine {
     this.renderer = renderer
     this.views = views
     this.meshes = meshes
-
-    this.sceneObjects = [...this.views.map((view) => view.camera), ...this.meshes]
+    this.lights = lights
     this.sceneObjectIndex = 0
 
     this.edit_transformControls = new TransformControls(
-      this.getViews(VIEW.MAIN).camera,
+      this.getView(VIEW.MAIN).camera,
       this.renderer.domElement
     )
 
+    this.addAllSceneObjectsToScene()
+    this.scene.add(this.edit_transformControls.getHelper())
+
+    console.log(this.edit_transformControls.getHelper())
+
+    this.attachWindowResizeListener()
+
+    if (this.mode !== MODE.EDIT) return
+    this.edit_addSceneObjectsHelpersToScene()
+    this.edit_attachObjectControlsHotkeysEventListener()
+  }
+
+  get transformableObjects(): THREE.Object3D[] {
+    return this.scene.children.filter((obj) => {
+      return obj instanceof THREE.Mesh || obj instanceof THREE.Camera || obj instanceof THREE.Light
+    })
+  }
+
+  addAllSceneObjectsToScene(): void {
     this.views.forEach((view) => {
       this.scene.add(view.camera)
     })
     this.meshes.forEach((mesh) => {
       this.scene.add(mesh)
     })
-    this.scene.add(this.edit_transformControls.getHelper())
-
-    this.attachWindowResizeListener()
-
-    if (this.mode !== MODE.EDIT) return
-    this.attachObjectControlsHotkeysEventListener()
+    this.lights.forEach((light) => {
+      this.scene.add(light)
+    })
   }
 
-  getViews(id: VIEW): FilmWindow {
+  getView(id: VIEW): FilmWindow {
     const view = this.views.find((view) => view.id === id)
-    if (!view) throw new Error(`FilmWindow with id ${id} not found`)
+    if (!view) throw new Error(`[ENGINE] FilmWindow with id ${id} not found`)
 
     return view
-  }
-
-  attachObjectControlsHotkeysEventListener(): void {
-    window.addEventListener('keydown', (event) => {
-      switch (event.key) {
-        case 'Tab': {
-          event.preventDefault()
-          this.sceneObjectIndex = (this.sceneObjectIndex + 1) % this.sceneObjects.length
-          const selectedObject = this.sceneObjects[this.sceneObjectIndex]
-          this.edit_transformControls.attach(selectedObject)
-          break
-        }
-        case 't':
-          this.edit_transformControls.setMode('translate')
-          break
-        case 'r':
-          this.edit_transformControls.setMode('rotate')
-          break
-        case 's':
-          this.edit_transformControls.setMode('scale')
-          break
-      }
-    })
   }
 
   attachWindowResizeListener(): void {
@@ -89,13 +82,11 @@ export class Engine {
       const sw = window.innerWidth
       const sh = window.innerHeight
 
-      // 1. Aggiorna il renderer principale
       this.renderer.setSize(sw, sh)
       this.renderer.setPixelRatio(window.devicePixelRatio)
 
-      // 2. Chiedi a ogni finestra di ricalcolarsi
-      this.getViews(VIEW.MAIN).handleResize(sw, sh)
-      this.getViews(VIEW.CHARACTER).handleResize(sw, sh)
+      this.getView(VIEW.MAIN).handleResize(sw, sh)
+      this.getView(VIEW.CHARACTER).handleResize(sw, sh)
     })
   }
 
@@ -116,5 +107,92 @@ export class Engine {
 
   frame(time: number): void {
     this.renderViews()
+    this.edit_updatedAllObjectsHelpers()
+  }
+
+  edit_addSceneObjectsHelpersToScene(): void {
+    this.views.forEach((view) => {
+      const cameraHelper = new THREE.CameraHelper(view.camera)
+      cameraHelper.name = `${view.camera.name}_Helper`
+      this.scene.add(cameraHelper)
+    })
+    this.meshes.forEach((mesh) => {
+      const boxHelper = new THREE.BoxHelper(mesh, 0xffff00)
+      boxHelper.name = `${mesh.name || mesh.type}_BoxHelper`
+      this.scene.add(boxHelper)
+    })
+    this.lights.forEach((light) => {
+      let lightHelper: THREE.Object3D | null = null
+      if (light instanceof THREE.PointLight) {
+        lightHelper = new THREE.PointLightHelper(light, 0.5)
+      } else if (light instanceof THREE.DirectionalLight) {
+        lightHelper = new THREE.DirectionalLightHelper(light, 0.5)
+      } else if (light instanceof THREE.SpotLight) {
+        lightHelper = new THREE.SpotLightHelper(light)
+      }
+      if (lightHelper) {
+        lightHelper.name = `${light.name || light.type}_Helper`
+        this.scene.add(lightHelper)
+      }
+    })
+  }
+
+  edit_updatedAllObjectsHelpers(): void {
+    if (this.mode !== MODE.EDIT) return
+    this.scene.traverse((child) => {
+      if (child instanceof THREE.CameraHelper) {
+        child.update()
+      }
+      if (child instanceof THREE.BoxHelper) {
+        child.update()
+      }
+      if (child instanceof THREE.PointLightHelper) {
+        child.update()
+      }
+      if (child instanceof THREE.DirectionalLightHelper) {
+        child.update()
+      }
+      if (child instanceof THREE.SpotLightHelper) {
+        child.update()
+      }
+    })
+  }
+
+  edit_attachObjectControlsHotkeysEventListener(): void {
+    window.addEventListener('keydown', (event) => {
+      switch (event.key) {
+        case 'Tab': {
+          event.preventDefault()
+          this.sceneObjectIndex = (this.sceneObjectIndex + 1) % this.transformableObjects.length
+          const selectedObject = this.transformableObjects[this.sceneObjectIndex]
+          this.edit_transformControls.attach(selectedObject)
+          console.debug(
+            `[ENGINE] Selected object: ${selectedObject.name || selectedObject.type} (index: ${this.sceneObjectIndex})`
+          )
+          break
+        }
+        case '\\': {
+          const selectedObject = this.transformableObjects[this.sceneObjectIndex]
+          const selectedObijectInfo = {
+            name: selectedObject.name || 'Unnamed Object',
+            type: selectedObject.type,
+            position: selectedObject.position,
+            rotation: selectedObject.rotation,
+            scale: selectedObject.scale
+          }
+          console.debug(`[ENGINE] Selected object info:`, selectedObijectInfo)
+          break
+        }
+        case 't':
+          this.edit_transformControls.setMode('translate')
+          break
+        case 'r':
+          this.edit_transformControls.setMode('rotate')
+          break
+        case 's':
+          this.edit_transformControls.setMode('scale')
+          break
+      }
+    })
   }
 }
