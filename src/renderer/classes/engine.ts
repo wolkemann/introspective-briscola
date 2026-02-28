@@ -23,8 +23,8 @@ export class Engine {
     scene: THREE.Scene,
     renderer: THREE.WebGLRenderer,
     views: FilmWindow[],
-    meshes: THREE.Mesh[] = [],
-    lights: THREE.Light[] = []
+    lights: THREE.Light[] = [],
+    meshes: THREE.Mesh[] = []
   ) {
     this.mode = MODE.EDIT
 

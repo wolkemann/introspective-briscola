@@ -1,5 +1,16 @@
 import gsap from 'gsap'
 
+export const MESSAGE_PROPS = {
+  BORDER_COLOR: 'red',
+  BORDER_SIZE: '3px',
+  FONT_SIZE: '20px',
+  TEXT_COLOR: '#383838',
+  BACKGROUND_COLOR: '#000000',
+  PADDING: '20px',
+  SHADOW: '0 0 10px rgba(0, 0, 0, 0.5)',
+  BORDER_RADIUS: '5px'
+}
+
 export class Message {
   id: string
   messages: string[]
@@ -8,6 +19,15 @@ export class Message {
   width: number
   height: number
   isMoving: boolean
+
+  borderColor: string
+  borderSize: string
+  fontSize: string
+  fontColor: string
+  backgroundColor: string
+  padding: string
+  shadow: string
+  borderRadius: string
 
   private isSkipped: boolean
 
@@ -27,24 +47,34 @@ export class Message {
     this.height = height
     this.isSkipped = false
     this.isMoving = false
+    this.borderColor = MESSAGE_PROPS.BORDER_COLOR
+    this.borderSize = MESSAGE_PROPS.BORDER_SIZE
+    this.fontSize = MESSAGE_PROPS.FONT_SIZE
+    this.fontColor = MESSAGE_PROPS.TEXT_COLOR
+    this.backgroundColor = MESSAGE_PROPS.BACKGROUND_COLOR
+    this.padding = MESSAGE_PROPS.PADDING
+    this.shadow = MESSAGE_PROPS.SHADOW
+    this.borderRadius = MESSAGE_PROPS.BORDER_RADIUS
   }
 
   renderDiv(): void {
     const messageDiv = document.createElement('div')
+
     messageDiv.id = this.id
     messageDiv.style.position = 'absolute'
     messageDiv.style.left = `${this.x}px`
     messageDiv.style.bottom = `${this.y}px`
-    messageDiv.style.width = `${this.width}px`
-    messageDiv.style.height = `${this.height}px`
-    messageDiv.style.border = '3px solid red'
-    messageDiv.style.backgroundColor = 'white'
-    messageDiv.style.color = 'black'
-    messageDiv.style.padding = '20px'
-    messageDiv.style.overflowY = 'auto'
+    messageDiv.style.width = `${this.width}vw`
+    messageDiv.style.height = `${this.height}vh`
+    messageDiv.style.border = `${this.borderSize} solid ${this.borderColor}`
+    messageDiv.style.backgroundColor = this.backgroundColor
+    messageDiv.style.color = this.fontColor
+    messageDiv.style.padding = this.padding
     messageDiv.style.fontFamily = 'Arial, sans-serif'
-    messageDiv.style.fontSize = '14px'
+    messageDiv.style.fontSize = this.fontSize
     messageDiv.style.userSelect = 'none'
+    messageDiv.style.boxShadow = this.shadow
+    messageDiv.style.borderRadius = this.borderRadius
     document.body.appendChild(messageDiv)
   }
 
